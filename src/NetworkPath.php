@@ -12,7 +12,6 @@ class NetworkPath
 	protected $network;
 	public $tmpNetwork;
 	public $currentDevice;
-	public $previousDevice;
 
 	/**
 	 * NetworkPath constructor.
@@ -46,6 +45,10 @@ class NetworkPath
 					$network[$deviceTo][$deviceFrom] = $latency;
 				}
 
+				foreach($network as &$device) {
+					asort($device, SORT_NUMERIC);
+				}
+
 				$this->network = $network;
 
 				// Close the file
@@ -56,6 +59,12 @@ class NetworkPath
 		}
 	}
 
+	/**
+	 * @param $data
+	 *
+	 * @return array|bool
+	 * @author Chris Mok
+	 */
 	public function parseData($data) {
 		if(!isset($data) || empty($data)) {
 			return false;
@@ -74,11 +83,23 @@ class NetworkPath
 		}
 	}
 
+	/**
+	 * @param $data
+	 *
+	 * @return bool
+	 * @author Chris Mok
+	 */
 	public function validation($data) {
 		//Latency data type check.
 		return is_numeric($data[2]);
 	}
 
+	/**
+	 * @param $data
+	 *
+	 * @return string
+	 * @author Chris Mok
+	 */
 	public function findPath($data) {
 		$searchFrom = strtoupper(trim($data[0]));
 		$searchTo = strtoupper(trim($data[1]));
@@ -100,11 +121,16 @@ class NetworkPath
 						$cnt++;
 						if($cnt == count($device)) {
 							if($neighbour != $searchTo) {
-								$resultPath = [$searchFrom];
-								$resultLatency = 0;
-								$this->currentDevice = $searchFrom;
-								$this->visitedDevices = array_slice($this->visitedDevices, 0, 2);
-								break;
+								if($this->isPossibleRouteAllDone($data)) {
+									unset($this->tmpNetwork);
+									break;
+								} else {
+									$resultPath = [$searchFrom];
+									$resultLatency = 0;
+									$this->currentDevice = $searchFrom;
+									$this->visitedDevices = array_slice($this->visitedDevices, 0, count($this->tmpNetwork[$this->currentDevice]));
+									break;
+								}
 							}
 						} else {
 							continue;
@@ -118,11 +144,14 @@ class NetworkPath
 						$resultLatency += $latency;
 
 						if($resultLatency > $searchLatency) {
+							if($this->isPossibleRouteAllDone($data)) {
+								unset($this->tmpNetwork);
+								break;
+							}
 							$resultPath = [$searchFrom];
 							$resultLatency = 0;
 							$this->currentDevice = $searchFrom;
-							$this->visitedDevices = array_slice($this->visitedDevices, 0, 2);
-							//$this->visitedDevices[] = $searchFrom;
+							$this->visitedDevices = array_slice($this->visitedDevices, 0, count($this->tmpNetwork[$this->currentDevice]));
 						} else {
 							unset($this->tmpNetwork);
 						}
@@ -132,9 +161,15 @@ class NetworkPath
 						$resultLatency += $latency;
 
 						if($resultLatency > $searchLatency) {
+							if($this->isPossibleRouteAllDone($data)) {
+								unset($this->tmpNetwork);
+								break;
+							}
+
 							$resultPath = [$searchFrom];
 							$resultLatency = 0;
 							$this->currentDevice = $searchFrom;
+							$this->visitedDevices = array_slice($this->visitedDevices, 0, count($this->tmpNetwork[$this->currentDevice]));
 						}
 					}
 					break;
@@ -144,20 +179,34 @@ class NetworkPath
 				$resultPath = [$searchFrom];
 				$resultLatency = 0;
 				$this->currentDevice = $searchFrom;
-				$this->visitedDevices = array_slice($this->visitedDevices, 0, 2);
+				$this->visitedDevices = array_slice($this->visitedDevices, 0, count($this->tmpNetwork[$this->currentDevice]));
 			}
 		}
 
 		if(!empty($resultPath) && count($resultPath) > 1) {
-			return implode(" => ", $resultPath) . " => " . $resultLatency;
+			if($resultLatency > $searchLatency) {
+				return "Path not found";
+			} else {
+				return implode(" => ", $resultPath) . " => " . $resultLatency;
+			}
 		} else {
 			return "Path not found";
 		}
 	}
 
-	public function calculator($device, $data) {
-		foreach($device as $neighbour => $latency) {
-
+	/**
+	 * @param $data
+	 *
+	 * @return bool
+	 * @author Chris Mok
+	 */
+	public function isPossibleRouteAllDone($data) {
+		$searchFrom = strtoupper(trim($data[0]));
+		foreach($this->tmpNetwork[$searchFrom] as $deviceName => $latency) {
+			if(!in_array($deviceName, $this->visitedDevices)) {
+				return false;
+			}
 		}
+		return true;
 	}
 }
