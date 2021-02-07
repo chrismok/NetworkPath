@@ -94,11 +94,23 @@ class NetworkPath
 		while(!empty($this->tmpNetwork)) {
 			$device = isset($this->tmpNetwork[$this->currentDevice]) && !empty($this->tmpNetwork[$this->currentDevice]) ? $this->tmpNetwork[$this->currentDevice] : false;
 			if($device !== false) {
+				$cnt = 0;
 				foreach($device as $neighbour => $latency) {
 					if(in_array($neighbour, $this->visitedDevices)) {
-						unset($this->tmpNetwork[$this->currentDevice][$neighbour]);
-						continue;
+						$cnt++;
+						if($cnt == count($device)) {
+							if($neighbour != $searchTo) {
+								$resultPath = [$searchFrom];
+								$resultLatency = 0;
+								$this->currentDevice = $searchFrom;
+								$this->visitedDevices = array_slice($this->visitedDevices, 0, 2);
+								break;
+							}
+						} else {
+							continue;
+						}
 					}
+
 					$this->visitedDevices[] = $neighbour;
 
 					if($neighbour == $searchTo) { //Find goal.
@@ -109,11 +121,11 @@ class NetworkPath
 							$resultPath = [$searchFrom];
 							$resultLatency = 0;
 							$this->currentDevice = $searchFrom;
-							array_pop($this->visitedDevices);
+							$this->visitedDevices = array_slice($this->visitedDevices, 0, 2);
+							//$this->visitedDevices[] = $searchFrom;
 						} else {
 							unset($this->tmpNetwork);
 						}
-						break;
 					} else {
 						$this->currentDevice = $neighbour;
 						$resultPath[] = $neighbour;
@@ -124,14 +136,15 @@ class NetworkPath
 							$resultLatency = 0;
 							$this->currentDevice = $searchFrom;
 						}
-						break;
 					}
+					break;
 				}
 			} else {
 				//unset($this->tmpNetwork);
 				$resultPath = [$searchFrom];
 				$resultLatency = 0;
 				$this->currentDevice = $searchFrom;
+				$this->visitedDevices = array_slice($this->visitedDevices, 0, 2);
 			}
 		}
 
