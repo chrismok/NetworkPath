@@ -16,7 +16,7 @@ if(!file_exists($argv[1])) {
 		$np = new NetworkPath($argv[1]);
 		if($np) {
 			while(true) {
-				echo "\nPlease input device from, device to and time. (e.g A F 1000 folowed by ENTER key)\n";
+				echo "\nPlease input device from, device to and time. (e.g A F 1000 followed by ENTER key)\n";
 				$h = fopen("php://stdin","r");
 				$line = fgets($h);
 				if(strtoupper(trim($line)) == 'QUIT') {
